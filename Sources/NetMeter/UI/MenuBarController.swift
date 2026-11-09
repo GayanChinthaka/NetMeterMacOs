@@ -12,7 +12,6 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
     private var settingsWindow: NSWindow?
     
     // Menu items that get dynamically updated
-    private var speedHeaderItem: NSMenuItem!
     private var sessionDownItem: NSMenuItem!
     private var sessionUpItem: NSMenuItem!
     private var interfaceItem: NSMenuItem!
@@ -91,13 +90,6 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
         menu = NSMenu()
         menu.delegate = self
         
-        // Speed Header
-        speedHeaderItem = NSMenuItem(title: "NetMeter", action: nil, keyEquivalent: "")
-        speedHeaderItem.isEnabled = false
-        menu.addItem(speedHeaderItem)
-        
-        menu.addItem(NSMenuItem.separator())
-        
         // Session Usage (In-Memory Only)
         let sessionHeader = NSMenuItem(title: "Session Usage (In-Memory):", action: nil, keyEquivalent: "")
         sessionHeader.isEnabled = false
@@ -147,12 +139,7 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
     
     public func menuWillOpen(_ menu: NSMenu) {
         let monitor = NetworkMonitor.shared
-        let prefs = PreferencesManager.shared
         
-        let downStr = SpeedFormatter.formatSpeed(monitor.downloadSpeed, unit: prefs.speedUnit)
-        let upStr = SpeedFormatter.formatSpeed(monitor.uploadSpeed, unit: prefs.speedUnit)
-        
-        speedHeaderItem.title = "Current:  ↓ \(downStr)   ↑ \(upStr)"
         sessionDownItem.title = "  ↓ Download: \(SpeedFormatter.formatTotalBytes(monitor.sessionDownloadedBytes))"
         sessionUpItem.title = "  ↑ Upload: \(SpeedFormatter.formatTotalBytes(monitor.sessionUploadedBytes))"
         

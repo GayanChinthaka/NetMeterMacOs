@@ -46,8 +46,8 @@ public final class PreferencesManager: ObservableObject {
     }
     
     private init() {
-        let launch = defaults.object(forKey: "launchAtLogin") as? Bool ?? false
-        let unitStr = defaults.string(forKey: "speedUnit") ?? SpeedUnit.bytes.rawValue
+        let launch = defaults.object(forKey: "launchAtLogin") as? Bool ?? true
+        let unitStr = defaults.string(forKey: "speedUnit") ?? SpeedUnit.bits.rawValue
         let layoutStr = defaults.string(forKey: "displayLayout") ?? DisplayLayout.stacked.rawValue
         let modeStr = defaults.string(forKey: "displayMode") ?? DisplayMode.both.rawValue
         let upTop = defaults.bool(forKey: "uploadOnTop")
@@ -58,7 +58,7 @@ public final class PreferencesManager: ObservableObject {
         let validFontSz = (fontSz >= 9.0 && fontSz <= 13.0) ? fontSz : 10.5
         
         self.launchAtLogin = launch
-        self.speedUnit = SpeedUnit(rawValue: unitStr) ?? .bytes
+        self.speedUnit = SpeedUnit(rawValue: unitStr) ?? .bits
         self.displayLayout = DisplayLayout(rawValue: layoutStr) ?? .stacked
         self.displayMode = DisplayMode(rawValue: modeStr) ?? .both
         self.uploadOnTop = upTop
@@ -68,9 +68,8 @@ public final class PreferencesManager: ObservableObject {
         self.fontSize = validFontSz
         
         if #available(macOS 13.0, *) {
-            let status = SMAppService.mainApp.status
-            if status == .enabled && !launch {
-                self.launchAtLogin = true
+            if launch && SMAppService.mainApp.status != .enabled {
+                try? SMAppService.mainApp.register()
             }
         }
     }

@@ -21,25 +21,36 @@ public final class StatusItemView: NSView {
     public var displayMode: DisplayMode = .both
     public var uploadOnTop: Bool = false
     public var showColors: Bool = true
+    public var fontSize: CGFloat = 10.5
     
-    // Fonts
-    private let stackedArrowFont = NSFont.systemFont(ofSize: 9.5, weight: .bold)
-    private let stackedTextFont = NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .semibold)
-    
-    private let singleArrowFont = NSFont.systemFont(ofSize: 12.0, weight: .bold)
-    private let singleTextFont = NSFont.monospacedDigitSystemFont(ofSize: 12.0, weight: .semibold)
+    // Dynamic fonts based on fontSize
+    private var stackedArrowFont: NSFont {
+        NSFont.systemFont(ofSize: fontSize, weight: .bold)
+    }
+    private var stackedTextFont: NSFont {
+        NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .semibold)
+    }
+    private var singleArrowFont: NSFont {
+        NSFont.systemFont(ofSize: min(15.0, fontSize + 2.0), weight: .bold)
+    }
+    private var singleTextFont: NSFont {
+        NSFont.monospacedDigitSystemFont(ofSize: min(14.5, fontSize + 1.5), weight: .semibold)
+    }
     
     public func calculateNeededWidth() -> CGFloat {
         if isStacked {
+            let arrowW = ("↓" as NSString).size(withAttributes: [.font: stackedArrowFont]).width
+            let textX = ceil(3.0 + arrowW + 3.0)
+            
             if displayMode == .both {
                 let w1 = (topText as NSString).size(withAttributes: [.font: stackedTextFont]).width
                 let w2 = (bottomText as NSString).size(withAttributes: [.font: stackedTextFont]).width
                 let maxTextW = max(w1, w2)
-                return ceil(14.0 + maxTextW + 6.0)
+                return ceil(textX + maxTextW + 5.0)
             } else {
                 let text = (displayMode == .downloadOnly) ? topText : bottomText
                 let w = (text as NSString).size(withAttributes: [.font: stackedTextFont]).width
-                return ceil(14.0 + w + 6.0)
+                return ceil(textX + w + 5.0)
             }
         } else {
             // Single line
@@ -65,12 +76,14 @@ public final class StatusItemView: NSView {
         let textColor = NSColor.labelColor
         
         if isStacked {
-            let lineHeight: CGFloat = 10.0
-            // Shift down so it has breathing room from the top screen bezel
-            let startY = max(2.0, (h - (lineHeight * 2.0)) / 2.0 + 1.2)
+            let lineHeight: CGFloat = max(10.0, fontSize + 0.8)
+            let totalH = lineHeight * 2.0
+            // Vertically center with top breathing margin
+            let startY = max(1.0, (h - totalH) / 2.0 + 0.8)
             
-            let arrowX: CGFloat = 3.0 // EXACT same X for both arrows so they align in the same column!
-            let textX: CGFloat = 14.0 // EXACT same X for both speed texts
+            let arrowX: CGFloat = 3.0 // Locked column for both arrows
+            let arrowW = ("↓" as NSString).size(withAttributes: [.font: stackedArrowFont]).width
+            let textX: CGFloat = ceil(arrowX + arrowW + 3.0)
             
             if displayMode == .both {
                 let firstArrow = uploadOnTop ? bottomArrow : topArrow
@@ -109,7 +122,7 @@ public final class StatusItemView: NSView {
                 let arrowColor = showColors ? ((displayMode == .downloadOnly) ? topArrowColor : bottomArrowColor) : textColor
                 let text = (displayMode == .downloadOnly) ? topText : bottomText
                 
-                let y = (h - 12.0) / 2.0 + 0.5
+                let y = (h - (fontSize + 2.5)) / 2.0 + 0.5
                 (arrow as NSString).draw(
                     at: NSPoint(x: arrowX, y: y),
                     withAttributes: [.font: stackedArrowFont, .foregroundColor: arrowColor]
@@ -122,7 +135,7 @@ public final class StatusItemView: NSView {
             
         } else {
             // Horizontal Single-Line Mode
-            let y = (h - 14.0) / 2.0 + 1.0 // Pushed down to center vertically
+            let y = (h - (fontSize + 3.5)) / 2.0 + 0.8
             var curX: CGFloat = 4.0
             
             let drawSegment = { (arrow: String, arrowColor: NSColor, speed: String) in

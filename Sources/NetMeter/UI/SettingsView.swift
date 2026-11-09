@@ -97,6 +97,24 @@ public struct SettingsView: View {
                 }
                 
                 Toggle("Use colored indicators (Green / Cyan)", isOn: $prefs.showColors)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Font Size:")
+                        Spacer()
+                        Text(String(format: "%.1f pt", prefs.fontSize))
+                            .font(.system(.subheadline, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: $prefs.fontSize, in: 9.0...12.5, step: 0.5) {
+                        Text("Font Size")
+                    } minimumValueLabel: {
+                        Text("9 pt").font(.caption).foregroundColor(.secondary)
+                    } maximumValueLabel: {
+                        Text("12.5 pt").font(.caption).foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 2)
             } header: {
                 Text("Menu Bar Appearance").fontWeight(.medium)
             }
@@ -121,6 +139,7 @@ public struct SettingsView: View {
         
         let downColor: Color = prefs.showColors ? .green : .primary
         let upColor: Color = prefs.showColors ? .cyan : .primary
+        let currentSize = CGFloat(prefs.fontSize)
         
         return Group {
             if prefs.displayLayout == .stacked {
@@ -128,47 +147,48 @@ public struct SettingsView: View {
                     if prefs.displayMode == .both {
                         if prefs.uploadOnTop {
                             HStack(spacing: 3) {
-                                Text("↑").foregroundColor(upColor).bold().frame(width: 10, alignment: .leading)
-                                Text(upStr).font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                                Text("↑").foregroundColor(upColor).bold().frame(width: currentSize, alignment: .leading)
+                                Text(upStr).font(.system(size: currentSize, weight: .semibold, design: .monospaced))
                             }
                             HStack(spacing: 3) {
-                                Text("↓").foregroundColor(downColor).bold().frame(width: 10, alignment: .leading)
-                                Text(downStr).font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                                Text("↓").foregroundColor(downColor).bold().frame(width: currentSize, alignment: .leading)
+                                Text(downStr).font(.system(size: currentSize, weight: .semibold, design: .monospaced))
                             }
                         } else {
                             HStack(spacing: 3) {
-                                Text("↓").foregroundColor(downColor).bold().frame(width: 10, alignment: .leading)
-                                Text(downStr).font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                                Text("↓").foregroundColor(downColor).bold().frame(width: currentSize, alignment: .leading)
+                                Text(downStr).font(.system(size: currentSize, weight: .semibold, design: .monospaced))
                             }
                             HStack(spacing: 3) {
-                                Text("↑").foregroundColor(upColor).bold().frame(width: 10, alignment: .leading)
-                                Text(upStr).font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                                Text("↑").foregroundColor(upColor).bold().frame(width: currentSize, alignment: .leading)
+                                Text(upStr).font(.system(size: currentSize, weight: .semibold, design: .monospaced))
                             }
                         }
                     } else if prefs.displayMode == .downloadOnly {
                         HStack(spacing: 3) {
-                            Text("↓").foregroundColor(downColor).bold().frame(width: 10, alignment: .leading)
-                            Text(downStr).font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                            Text("↓").foregroundColor(downColor).bold().frame(width: currentSize, alignment: .leading)
+                            Text(downStr).font(.system(size: currentSize, weight: .semibold, design: .monospaced))
                         }
                     } else {
                         HStack(spacing: 3) {
-                            Text("↑").foregroundColor(upColor).bold().frame(width: 10, alignment: .leading)
-                            Text(upStr).font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                            Text("↑").foregroundColor(upColor).bold().frame(width: currentSize, alignment: .leading)
+                            Text(upStr).font(.system(size: currentSize, weight: .semibold, design: .monospaced))
                         }
                     }
                 }
             } else {
+                let singleSize = currentSize + 1.5
                 HStack(spacing: 8) {
                     if prefs.displayMode == .both || prefs.displayMode == .downloadOnly {
                         HStack(spacing: 3) {
                             Text("↓").foregroundColor(downColor).bold()
-                            Text(downStr).font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            Text(downStr).font(.system(size: singleSize, weight: .semibold, design: .monospaced))
                         }
                     }
                     if prefs.displayMode == .both || prefs.displayMode == .uploadOnly {
                         HStack(spacing: 3) {
                             Text("↑").foregroundColor(upColor).bold()
-                            Text(upStr).font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            Text(upStr).font(.system(size: singleSize, weight: .semibold, design: .monospaced))
                         }
                     }
                 }

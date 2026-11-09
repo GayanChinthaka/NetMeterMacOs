@@ -78,6 +78,7 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
         view.displayMode = prefs.displayMode
         view.uploadOnTop = prefs.uploadOnTop
         view.showColors = prefs.showColors
+        view.fontSize = CGFloat(prefs.fontSize)
         
         let neededWidth = view.calculateNeededWidth()
         statusItem.length = neededWidth

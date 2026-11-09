@@ -41,24 +41,31 @@ public final class PreferencesManager: ObservableObject {
         didSet { defaults.set(showColors, forKey: "showColors") }
     }
     
+    @Published public var fontSize: Double {
+        didSet { defaults.set(fontSize, forKey: "fontSize") }
+    }
+    
     private init() {
         let launch = defaults.object(forKey: "launchAtLogin") as? Bool ?? false
         let unitStr = defaults.string(forKey: "speedUnit") ?? SpeedUnit.bytes.rawValue
-        let layoutStr = defaults.string(forKey: "displayLayout") ?? DisplayLayout.singleLine.rawValue
+        let layoutStr = defaults.string(forKey: "displayLayout") ?? DisplayLayout.stacked.rawValue
         let modeStr = defaults.string(forKey: "displayMode") ?? DisplayMode.both.rawValue
         let upTop = defaults.bool(forKey: "uploadOnTop")
         let interval = defaults.double(forKey: "updateInterval") == 0 ? 1.0 : defaults.double(forKey: "updateInterval")
         let ifaceStr = defaults.string(forKey: "interfaceFilter") ?? InterfaceFilter.auto.rawValue
         let colors = defaults.object(forKey: "showColors") as? Bool ?? true
+        let fontSz = defaults.double(forKey: "fontSize")
+        let validFontSz = (fontSz >= 9.0 && fontSz <= 13.0) ? fontSz : 10.5
         
         self.launchAtLogin = launch
         self.speedUnit = SpeedUnit(rawValue: unitStr) ?? .bytes
-        self.displayLayout = DisplayLayout(rawValue: layoutStr) ?? .singleLine
+        self.displayLayout = DisplayLayout(rawValue: layoutStr) ?? .stacked
         self.displayMode = DisplayMode(rawValue: modeStr) ?? .both
         self.uploadOnTop = upTop
         self.updateInterval = interval
         self.interfaceFilter = InterfaceFilter(rawValue: ifaceStr) ?? .auto
         self.showColors = colors
+        self.fontSize = validFontSz
         
         if #available(macOS 13.0, *) {
             let status = SMAppService.mainApp.status

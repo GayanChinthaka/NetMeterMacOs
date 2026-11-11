@@ -10,8 +10,9 @@
 /.swiftpm/
 .netrc
 
-# App bundle created by scripts/build_app.sh
+# App bundle and release files created by scripts/
 /build/
+/dist/
 
 # Xcode
 xcuserdata/

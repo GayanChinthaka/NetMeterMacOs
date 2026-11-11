@@ -7,6 +7,10 @@ public struct SettingsView: View {
     
     public init() {}
     
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+    
     public var body: some View {
         TabView {
             generalTab
@@ -61,7 +65,7 @@ public struct SettingsView: View {
                         Text("Ultra-lightweight real-time network speed monitor for macOS.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("Version 1.0.0 • Personal Use • Native Swift")
+                        Text("Version \(appVersion) • Personal Use • Native Swift")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

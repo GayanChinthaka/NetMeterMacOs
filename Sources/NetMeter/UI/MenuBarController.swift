@@ -2,14 +2,27 @@ import AppKit
 import SwiftUI
 import Combine
 
-public final class MenuBarController: NSObject, NSMenuDelegate {
+public final class MenuBarController: NSObject, NSMenuDelegate, NSWindowDelegate {
     public static let shared = MenuBarController()
-    
+
     private var statusItem: NSStatusItem!
     private var statusView: StatusItemView?
     private var menu: NSMenu!
     private var cancellables = Set<AnyCancellable>()
     private var settingsWindow: NSWindow?
+
+    /// Everything that affects what the status item draws. Used to skip redraws when nothing changed.
+    private struct RenderState: Equatable {
+        var downText: String
+        var upText: String
+        var isStacked: Bool
+        var displayMode: DisplayMode
+        var uploadOnTop: Bool
+        var showColors: Bool
+        var fontSize: Double
+    }
+    private var lastRenderState: RenderState?
+    private var lastWidth: CGFloat = 0
     
     // Menu items that get dynamically updated
     private var sessionDownItem: NSMenuItem!
@@ -65,24 +78,42 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
         guard let button = statusItem?.button, let view = statusView else { return }
         let prefs = PreferencesManager.shared
         let monitor = NetworkMonitor.shared
-        
-        let downStr = SpeedFormatter.formatSpeed(monitor.downloadSpeed, unit: prefs.speedUnit)
-        let upStr = SpeedFormatter.formatSpeed(monitor.uploadSpeed, unit: prefs.speedUnit)
-        
+
+        let state = RenderState(
+            downText: SpeedFormatter.formatSpeed(monitor.downloadSpeed, unit: prefs.speedUnit),
+            upText: SpeedFormatter.formatSpeed(monitor.uploadSpeed, unit: prefs.speedUnit),
+            isStacked: prefs.displayLayout == .stacked,
+            displayMode: prefs.displayMode,
+            uploadOnTop: prefs.uploadOnTop,
+            showColors: prefs.showColors,
+            fontSize: prefs.fontSize
+        )
+        // Redrawing and resizing the status item makes the whole menu bar do work,
+        // so do nothing when the visible text and settings are unchanged.
+        guard state != lastRenderState else { return }
+        lastRenderState = state
+
         view.topArrow = "↓"
-        view.topText = downStr
+        view.topText = state.downText
         view.bottomArrow = "↑"
-        view.bottomText = upStr
-        view.isStacked = (prefs.displayLayout == .stacked)
-        view.displayMode = prefs.displayMode
-        view.uploadOnTop = prefs.uploadOnTop
-        view.showColors = prefs.showColors
-        view.fontSize = CGFloat(prefs.fontSize)
-        
+        view.bottomText = state.upText
+        view.isStacked = state.isStacked
+        view.displayMode = state.displayMode
+        view.uploadOnTop = state.uploadOnTop
+        view.showColors = state.showColors
+        view.fontSize = CGFloat(state.fontSize)
+
         let neededWidth = view.calculateNeededWidth()
-        statusItem.length = neededWidth
+        // Changing the length relayouts every menu bar item; only do it when the width really changes.
+        if neededWidth != lastWidth {
+            lastWidth = neededWidth
+            statusItem.length = neededWidth
+        }
         let h = button.bounds.height > 0 ? button.bounds.height : 24.0
-        view.frame = NSRect(x: 0, y: 0, width: neededWidth, height: h)
+        let newFrame = NSRect(x: 0, y: 0, width: neededWidth, height: h)
+        if view.frame != newFrame {
+            view.frame = newFrame
+        }
         view.needsDisplay = true
     }
     
@@ -160,21 +191,37 @@ public final class MenuBarController: NSObject, NSMenuDelegate {
         
         let settingsView = SettingsView()
         let hostingController = NSHostingController(rootView: settingsView)
-        
+        // Fixed-size window: stop SwiftUI from pushing size changes to the window.
+        // Without this, the live preview (whose width changes every tick) can start a
+        // layout feedback loop between the hosting view and the window toolbar.
+        hostingController.sizingOptions = []
+
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
-        window.center()
         window.title = "NetMeter Settings"
         window.contentViewController = hostingController
+        window.setContentSize(NSSize(width: 480, height: 380))
+        window.center()
         window.isReleasedWhenClosed = false
+        window.delegate = self
         self.settingsWindow = window
-        
+
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    public func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === settingsWindow else { return }
+        // Tear down the SwiftUI view so a closed Settings window does no work in the background.
+        settingsWindow = nil
+        DispatchQueue.main.async {
+            window.contentViewController = nil
+            window.delegate = nil
+        }
     }
     
     @objc private func quitAppClicked() {

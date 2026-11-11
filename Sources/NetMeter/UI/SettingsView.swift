@@ -1,8 +1,9 @@
 import SwiftUI
 
 public struct SettingsView: View {
+    // Note: this view deliberately does not observe NetworkMonitor. Only the small
+    // subviews that show live numbers do, so the whole TabView is not rebuilt every tick.
     @ObservedObject var prefs = PreferencesManager.shared
-    @ObservedObject var monitor = NetworkMonitor.shared
     
     public init() {}
     
@@ -124,7 +125,7 @@ public struct SettingsView: View {
                     Text("Live Preview:")
                         .foregroundColor(.secondary)
                     Spacer()
-                    previewBox
+                    SettingsPreviewBox()
                 }
             } header: {
                 Text("Preview").fontWeight(.medium)
@@ -133,7 +134,59 @@ public struct SettingsView: View {
         .formStyle(.grouped)
     }
     
-    private var previewBox: some View {
+    private var networkTab: some View {
+        Form {
+            Section {
+                Picker("Traffic Source", selection: $prefs.interfaceFilter) {
+                    ForEach(InterfaceFilter.allCases) { filter in
+                        Text(filter.displayName).tag(filter)
+                    }
+                }
+            } header: {
+                Text("Interface Monitoring").fontWeight(.medium)
+            }
+            
+            ConnectionDetailsSection()
+        }
+        .formStyle(.grouped)
+    }
+    
+    private var privacyTab: some View {
+        Form {
+            Section {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.shield.fill")
+                            .foregroundColor(.green)
+                            .font(.title2)
+                        Text("100% Private & Stateless")
+                            .font(.headline)
+                    }
+                    
+                    Text("NetMeter does not record, log, or persist your network traffic or visited sites to any files, databases, or external servers.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                    
+                    Text("• Zero disk logging\n• Zero analytics or telemetry\n• No account or login required\n• All session counters are held strictly in temporary RAM and vanish when NetMeter quits.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 6)
+            } header: {
+                Text("Privacy Guarantee").fontWeight(.medium)
+            }
+            
+            SessionUsageSection()
+        }
+        .formStyle(.grouped)
+    }
+}
+
+private struct SettingsPreviewBox: View {
+    @ObservedObject var prefs = PreferencesManager.shared
+    @ObservedObject var monitor = NetworkMonitor.shared
+    
+    var body: some View {
         let downStr = SpeedFormatter.formatSpeed(monitor.downloadSpeed > 0 ? monitor.downloadSpeed : 1_540_000, unit: prefs.speedUnit)
         let upStr = SpeedFormatter.formatSpeed(monitor.uploadSpeed > 0 ? monitor.uploadSpeed : 256_000, unit: prefs.speedUnit)
         
@@ -200,68 +253,37 @@ public struct SettingsView: View {
         .cornerRadius(6)
     }
     
-    private var networkTab: some View {
-        Form {
-            Section {
-                Picker("Traffic Source", selection: $prefs.interfaceFilter) {
-                    ForEach(InterfaceFilter.allCases) { filter in
-                        Text(filter.displayName).tag(filter)
-                    }
-                }
-            } header: {
-                Text("Interface Monitoring").fontWeight(.medium)
-            }
-            
-            Section {
-                LabeledContent("Active Interface", value: "\(monitor.activeInterfaceType) (\(monitor.activeInterfaceName))")
-                LabeledContent("Local IP Address", value: monitor.localIPAddress)
-                LabeledContent("Connection Status", value: monitor.isConnected ? "Connected" : "Disconnected")
-            } header: {
-                Text("Connection Details").fontWeight(.medium)
-            }
-        }
-        .formStyle(.grouped)
-    }
+}
+
+private struct ConnectionDetailsSection: View {
+    @ObservedObject var monitor = NetworkMonitor.shared
     
-    private var privacyTab: some View {
-        Form {
-            Section {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.shield.fill")
-                            .foregroundColor(.green)
-                            .font(.title2)
-                        Text("100% Private & Stateless")
-                            .font(.headline)
-                    }
-                    
-                    Text("NetMeter does not record, log, or persist your network traffic or visited sites to any files, databases, or external servers.")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                    
-                    Text("• Zero disk logging\n• Zero analytics or telemetry\n• No account or login required\n• All session counters are held strictly in temporary RAM and vanish when NetMeter quits.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 6)
-            } header: {
-                Text("Privacy Guarantee").fontWeight(.medium)
-            }
-            
-            Section {
-                LabeledContent("Session Downloaded", value: SpeedFormatter.formatTotalBytes(monitor.sessionDownloadedBytes))
-                LabeledContent("Session Uploaded", value: SpeedFormatter.formatTotalBytes(monitor.sessionUploadedBytes))
-                
-                Button(role: .destructive, action: {
-                    monitor.resetSession()
-                }) {
-                    Label("Reset Session Counters", systemImage: "arrow.counterclockwise")
-                }
-            } header: {
-                Text("Current RAM Session").fontWeight(.medium)
-            }
+    var body: some View {
+        Section {
+            LabeledContent("Active Interface", value: "\(monitor.activeInterfaceType) (\(monitor.activeInterfaceName))")
+            LabeledContent("Local IP Address", value: monitor.localIPAddress)
+            LabeledContent("Connection Status", value: monitor.isConnected ? "Connected" : "Disconnected")
+        } header: {
+            Text("Connection Details").fontWeight(.medium)
         }
-        .formStyle(.grouped)
     }
 }
 
+private struct SessionUsageSection: View {
+    @ObservedObject var monitor = NetworkMonitor.shared
+    
+    var body: some View {
+        Section {
+            LabeledContent("Session Downloaded", value: SpeedFormatter.formatTotalBytes(monitor.sessionDownloadedBytes))
+            LabeledContent("Session Uploaded", value: SpeedFormatter.formatTotalBytes(monitor.sessionUploadedBytes))
+            
+            Button(role: .destructive, action: {
+                monitor.resetSession()
+            }) {
+                Label("Reset Session Counters", systemImage: "arrow.counterclockwise")
+            }
+        } header: {
+            Text("Current RAM Session").fontWeight(.medium)
+        }
+    }
+}

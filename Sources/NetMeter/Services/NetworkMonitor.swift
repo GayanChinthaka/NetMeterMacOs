@@ -27,6 +27,7 @@ public final class NetworkMonitor: ObservableObject {
     private let monitorQueue = DispatchQueue(label: "com.netmeter.pathMonitor", qos: .utility)
     private var timer: DispatchSourceTimer?
     private let timerQueue = DispatchQueue(label: "com.netmeter.timer", qos: .utility)
+    private var isPaused = false // only touched on timerQueue
     
     private var lastCounters: NetworkCounters?
     private var lastTimestamp: CFAbsoluteTime = 0
@@ -38,14 +39,19 @@ public final class NetworkMonitor: ObservableObject {
         self.localIPAddress = fetchIPAddress(for: initialIface) ?? ""
         
         startPathMonitor()
-        startTimer(interval: PreferencesManager.shared.updateInterval)
-        
+        let initialInterval = PreferencesManager.shared.updateInterval
+        timerQueue.async { [weak self] in
+            self?.startTimer(interval: initialInterval)
+        }
+
         // Listen to preference changes for updateInterval and interfaceFilter
         PreferencesManager.shared.$updateInterval
             .dropFirst()
             .removeDuplicates()
             .sink { [weak self] newInterval in
-                self?.startTimer(interval: newInterval)
+                self?.timerQueue.async {
+                    self?.startTimer(interval: newInterval)
+                }
             }
             .store(in: &cancellables)
     }
@@ -143,12 +149,35 @@ public final class NetworkMonitor: ObservableObject {
         pathMonitor.start(queue: monitorQueue)
     }
     
+    /// Stops sampling (for example while the displays are asleep). Session totals are kept:
+    /// the next sample after `resume()` counts the traffic that happened in between.
+    public func pause() {
+        timerQueue.async { [weak self] in
+            guard let self = self, !self.isPaused else { return }
+            self.isPaused = true
+            self.timer?.cancel()
+            self.timer = nil
+        }
+    }
+
+    public func resume() {
+        timerQueue.async { [weak self] in
+            guard let self = self, self.isPaused else { return }
+            self.isPaused = false
+            self.startTimer(interval: PreferencesManager.shared.updateInterval)
+        }
+    }
+
     private func startTimer(interval: Double) {
         timer?.cancel()
-        
+        timer = nil
+        guard !isPaused else { return }
+
         let validInterval = max(0.2, interval)
         let newTimer = DispatchSource.makeTimerSource(queue: timerQueue)
-        newTimer.schedule(deadline: .now(), repeating: validInterval, leeway: .milliseconds(50))
+        // A generous leeway lets macOS coalesce our wakeups with other timers.
+        let leewayMs = max(50, Int(validInterval * 1000 * 0.1))
+        newTimer.schedule(deadline: .now(), repeating: validInterval, leeway: .milliseconds(leewayMs))
         
         newTimer.setEventHandler { [weak self] in
             self?.tick()
@@ -193,10 +222,12 @@ public final class NetworkMonitor: ObservableObject {
         
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.downloadSpeed = downSpeed
-            self.uploadSpeed = upSpeed
-            self.sessionDownloadedBytes += addedIn
-            self.sessionUploadedBytes += addedOut
+            // Assigning a @Published property notifies subscribers even if the value is the same,
+            // so only assign when something changed (e.g. stays quiet while the network is idle).
+            if self.downloadSpeed != downSpeed { self.downloadSpeed = downSpeed }
+            if self.uploadSpeed != upSpeed { self.uploadSpeed = upSpeed }
+            if addedIn > 0 { self.sessionDownloadedBytes += addedIn }
+            if addedOut > 0 { self.sessionUploadedBytes += addedOut }
         }
     }
     
